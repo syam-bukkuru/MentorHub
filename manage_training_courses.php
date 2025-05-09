@@ -2,6 +2,24 @@
 include 'db.php';
 include 'navbar.php';
 
+// Function to convert YouTube URL to embed format
+function getEmbedLink($url)
+{
+    if (strpos($url, 'youtu.be/') !== false) {
+        $parts = parse_url($url);
+        $video_id = ltrim($parts['path'], '/');
+        return "https://www.youtube.com/embed/" . $video_id;
+    }
+    if (strpos($url, 'watch?v=') !== false) {
+        parse_str(parse_url($url, PHP_URL_QUERY), $query);
+        return "https://www.youtube.com/embed/" . $query['v'];
+    }
+    if (strpos($url, 'embed/') !== false) {
+        return $url;
+    }
+    return $url; // fallback
+}
+
 // Variables
 $success = '';
 $error = '';
@@ -15,7 +33,7 @@ if (isset($_GET['delete_id'])) {
     $stmt->bind_param("i", $delete_id);
     $stmt->execute();
     $stmt->close();
-    header("Location: rough.php");
+    header("Location: manage_training_courses.php");
     exit();
 }
 
@@ -36,24 +54,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $title = $_POST['title'];
     $description = $_POST['description'];
     $youtube_link = $_POST['youtube_link'];
+    $course_name = $_POST['course_name'];
 
     if (isset($_POST['edit_id']) && !empty($_POST['edit_id'])) {
         // Update
         $edit_id = $_POST['edit_id'];
-        $stmt = $conn->prepare("UPDATE training_courses SET title=?, description=?, youtube_link=? WHERE id=?");
-        $stmt->bind_param("sssi", $title, $description, $youtube_link, $edit_id);
+        $stmt = $conn->prepare("UPDATE training_courses SET title=?, description=?, youtube_link=?, course_name=? WHERE id=?");
+        $stmt->bind_param("ssssi", $title, $description, $youtube_link, $course_name, $edit_id);
         if ($stmt->execute()) {
             $success = "Video updated successfully!";
         } else {
             $error = "Failed to update.";
         }
         $stmt->close();
-        header("Location: rough.php");
+        header("Location: manage_training_courses.php");
         exit();
     } else {
         // Insert
-        $stmt = $conn->prepare("INSERT INTO training_courses (title, description, youtube_link) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $title, $description, $youtube_link);
+        $stmt = $conn->prepare("INSERT INTO training_courses (title, description, youtube_link, course_name) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $title, $description, $youtube_link, $course_name);
         if ($stmt->execute()) {
             $success = "Video added successfully!";
         } else {
@@ -64,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Fetch all videos
-$result = $conn->query("SELECT * FROM training_courses ORDER BY id DESC");
+$result = $conn->query("SELECT * FROM training_courses ORDER BY course_name, id DESC");
 ?>
 
 <!DOCTYPE html>
@@ -95,6 +114,11 @@ $result = $conn->query("SELECT * FROM training_courses ORDER BY id DESC");
                     <input type="hidden" name="edit_id" value="<?php echo htmlspecialchars($video_to_edit['id']); ?>">
                 <?php endif; ?>
                 <div class="mb-3">
+                    <label class="form-label">Course/Category Name</label>
+                    <input type="text" name="course_name" class="form-control" required
+                        value="<?php echo htmlspecialchars($video_to_edit['course_name'] ?? ''); ?>">
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Video Title</label>
                     <input type="text" name="title" class="form-control" required
                         value="<?php echo htmlspecialchars($video_to_edit['title'] ?? ''); ?>">
@@ -105,7 +129,7 @@ $result = $conn->query("SELECT * FROM training_courses ORDER BY id DESC");
                         required><?php echo htmlspecialchars($video_to_edit['description'] ?? ''); ?></textarea>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">YouTube Link (Embed URL)</label>
+                    <label class="form-label">YouTube Link (any format)</label>
                     <input type="url" name="youtube_link" class="form-control" required
                         value="<?php echo htmlspecialchars($video_to_edit['youtube_link'] ?? ''); ?>">
                 </div>
@@ -121,9 +145,10 @@ $result = $conn->query("SELECT * FROM training_courses ORDER BY id DESC");
                 <thead class="table-dark">
                     <tr>
                         <th>ID</th>
+                        <th>Course</th>
                         <th>Title</th>
                         <th>Description</th>
-                        <th>Watch</th>
+                        <th>Video</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -131,10 +156,14 @@ $result = $conn->query("SELECT * FROM training_courses ORDER BY id DESC");
                     <?php while ($video = $result->fetch_assoc()): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($video['id']); ?></td>
+                            <td><?php echo htmlspecialchars($video['course_name']); ?></td>
                             <td><?php echo htmlspecialchars($video['title']); ?></td>
                             <td><?php echo htmlspecialchars($video['description']); ?></td>
-                            <td><a href="<?php echo htmlspecialchars($video['youtube_link']); ?>" target="_blank">▶️
-                                    Watch</a></td>
+                            <td>
+                                <iframe width="200" height="120"
+                                    src="<?php echo htmlspecialchars(getEmbedLink($video['youtube_link'])); ?>"
+                                    frameborder="0" allowfullscreen></iframe>
+                            </td>
                             <td>
                                 <a href="?edit_id=<?php echo $video['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
                                 <a href="?delete_id=<?php echo $video['id']; ?>" class="btn btn-danger btn-sm"

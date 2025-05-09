@@ -25,13 +25,10 @@
                     <a class="nav-link" href="add_placement.php">Add Resume</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="training_course.php">Course</a>
+                    <a class="nav-link" href="manage_training_courses.php">new</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="rough.php">Rough</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="old_training_course.php">Old course</a>
+                    <a class="nav-link" href="training_courses.php">new Training</a>
                 </li>
             </ul>
         </div>
